@@ -17,15 +17,21 @@ export function App() {
   }, []);
 
   return (
-    <div className="container">
-      <header>
-        <h1>
-          <a href="#/">DeskLine</a>
-        </h1>
+    <>
+      <header className="app-header">
+        <div className="app-header-inner">
+          <a className="brand" href="#/">
+            <span className="brand-mark">D</span>
+            DeskLine
+          </a>
+          <span className="brand-tag">Support</span>
+        </div>
       </header>
-      <main>
-        {route.ticketId !== null ? <TicketDetail id={route.ticketId} /> : <TicketList />}
-      </main>
-    </div>
+      <div className="container">
+        <main>
+          {route.ticketId !== null ? <TicketDetail id={route.ticketId} /> : <TicketList />}
+        </main>
+      </div>
+    </>
   );
 }
