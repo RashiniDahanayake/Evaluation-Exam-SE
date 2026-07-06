@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DeskLine API tester</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #1e293b;
+        --panel-2: #273449;
+        --border: #334155;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --ok: #22c55e;
+        --err: #ef4444;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+      header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border);
+      }
+      header h1 { margin: 0; font-size: 18px; }
+      header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+        padding: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+      }
+      .card h2 {
+        margin: 0 0 4px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .method {
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 6px;
+        letter-spacing: 0.5px;
+      }
+      .method.get { background: #0e7490; color: #e0f2fe; }
+      .method.post { background: #15803d; color: #dcfce7; }
+      .method.patch { background: #b45309; color: #fef3c7; }
+      .path { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+      .desc { color: var(--muted); font-size: 12px; margin: 2px 0 12px; }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+      input, select, textarea {
+        width: 100%;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+      textarea { font-family: var(--mono); min-height: 96px; resize: vertical; }
+      .row { display: flex; gap: 10px; }
+      .row > * { flex: 1; }
+      button {
+        margin-top: 12px;
+        background: var(--accent);
+        color: #082f49;
+        border: none;
+        border-radius: 6px;
+        padding: 9px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover { filter: brightness(1.08); }
+      button:active { transform: translateY(1px); }
+      .response {
+        margin-top: 24px;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 0 24px 40px;
+      }
+      .status-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+      .dot.ok { background: var(--ok); }
+      .dot.err { background: var(--err); }
+      pre {
+        background: #0b1120;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        overflow: auto;
+        max-height: 480px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        margin: 0;
+      }
+      .muted { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>DeskLine API tester</h1>
+      <p>
+        Poke the backend without Postman. Requests are sent relative (e.g.
+        <span class="path">/tickets</span>) and proxied to the API by the Vite dev
+        server. Open this at <span class="path">http://localhost:5173/api-tester.html</span>.
+      </p>
+    </header>
+
+    <div class="grid">
+      <!-- GET /tickets -->
+      <div class="card">
+        <h2><span class="method get">GET</span> <span class="path">/tickets</span></h2>
+        <p class="desc">List tickets. Filters are optional and combinable.</p>
+        <div class="row">
+          <div>
+            <label>status</label>
+            <select id="list-status">
+              <option value="">(any)</option>
+              <option value="open">open</option>
+              <option value="in_progress">in_progress</option>
+              <option value="resolved">resolved</option>
+              <option value="closed">closed</option>
+            </select>
+          </div>
+          <div>
+            <label>assigneeId</label>
+            <input id="list-assignee" type="number" min="1" placeholder="(any)" />
+          </div>
+        </div>
+        <button onclick="listTickets()">Send</button>
+      </div>
+
+      <!-- GET /users -->
+      <div class="card">
+        <h2><span class="method get">GET</span> <span class="path">/users</span></h2>
+        <p class="desc">List agents (used to populate the assignee filter).</p>
+        <button onclick="send('GET', '/users')">Send</button>
+      </div>
+
+      <!-- GET /tickets/:id -->
+      <div class="card">
+        <h2><span class="method get">GET</span> <span class="path">/tickets/:id</span></h2>
+        <p class="desc">Fetch a single ticket with its comments.</p>
+        <label>id</label>
+        <input id="get-id" type="number" min="1" value="1" />
+        <button onclick="send('GET', '/tickets/' + numOr(id('get-id'), 1))">Send</button>
+      </div>
+
+      <!-- PATCH /tickets/:id/status -->
+      <div class="card">
+        <h2><span class="method patch">PATCH</span> <span class="path">/tickets/:id/status</span></h2>
+        <p class="desc">Update a ticket's status. Resolving stamps resolved_at.</p>
+        <div class="row">
+          <div>
+            <label>id</label>
+            <input id="patch-id" type="number" min="1" value="1" />
+          </div>
+          <div>
+            <label>status</label>
+            <select id="patch-status">
+              <option value="open">open</option>
+              <option value="in_progress">in_progress</option>
+              <option value="resolved">resolved</option>
+              <option value="closed">closed</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="patchStatus()">Send</button>
+      </div>
+
+      <!-- POST /tickets -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <h2><span class="method post">POST</span> <span class="path">/tickets</span></h2>
+        <p class="desc">
+          Create a ticket. Only subject and description are required; priority,
+          assigneeId and slaHours have server defaults. Edit the JSON body below.
+        </p>
+        <label>request body (JSON)</label>
+        <textarea id="post-body">{
+  "subject": "Test ticket from API tester",
+  "description": "Filed via the API tester page.",
+  "priority": "high",
+  "assigneeId": 1,
+  "slaHours": 4
+}</textarea>
+        <button onclick="createTicket()">Send</button>
+      </div>
+    </div>
+
+    <div class="response">
+      <div class="status-line">
+        <span class="dot" id="dot"></span>
+        <span id="status">Ready — send a request.</span>
+      </div>
+      <pre id="output" class="muted">Response will appear here.</pre>
+    </div>
+
+    <script>
+      const id = (x) => document.getElementById(x);
+      const numOr = (el, d) => (el.value ? Number(el.value) : d);
+
+      function render(status, statusText, ok, body) {
+        const dot = id('dot');
+        dot.className = 'dot ' + (ok ? 'ok' : 'err');
+        id('status').textContent = status + ' ' + statusText;
+        const out = id('output');
+        out.className = '';
+        out.textContent =
+          typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+      }
+
+      async function send(method, path, body) {
+        id('status').textContent = method + ' ' + path + ' …';
+        id('dot').className = 'dot';
+        try {
+          const res = await fetch(path, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: body === undefined ? undefined : JSON.stringify(body),
+          });
+          let parsed;
+          const text = await res.text();
+          try { parsed = JSON.parse(text); } catch { parsed = text; }
+          render(res.status, res.statusText, res.ok, parsed);
+        } catch (err) {
+          render('—', 'Network / proxy error', false, String(err));
+        }
+      }
+
+      function listTickets() {
+        const params = new URLSearchParams();
+        const status = id('list-status').value;
+        const assignee = id('list-assignee').value;
+        if (status) params.set('status', status);
+        if (assignee) params.set('assigneeId', assignee);
+        const qs = params.toString();
+        send('GET', qs ? '/tickets?' + qs : '/tickets');
+      }
+
+      function patchStatus() {
+        const ticketId = numOr(id('patch-id'), 1);
+        send('PATCH', '/tickets/' + ticketId + '/status', {
+          status: id('patch-status').value,
+        });
+      }
+
+      function createTicket() {
+        let payload;
+        try {
+          payload = JSON.parse(id('post-body').value);
+        } catch (err) {
+          render('—', 'Invalid JSON in request body', false, String(err));
+          return;
+        }
+        send('POST', '/tickets', payload);
+      }
+    </script>
+  </body>
+</html>

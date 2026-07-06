@@ -1,0 +1,90 @@
+name: CI
+
+# Run the full check suite on every branch push and on every pull request,
+# so problems are caught before the code is merged.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  # ── API: typecheck + tests against a real Postgres ──────────────────────────
+  api:
+    name: API (typecheck + tests)
+    runs-on: ubuntu-latest
+
+    # The repositories and tests hit a real Postgres — there is no mocked DB —
+    # so we start one as a service container. The test helper creates the
+    # separate `deskline_test` database automatically on first run.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: deskline
+        ports:
+          - 5432:5432
+        # Don't start the job's steps until Postgres is actually accepting
+        # connections.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+        env:
+          # vitest.config.ts reads DATABASE_URL_TEST; this points the suite at
+          # the Postgres service container started above.
+          DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/deskline_test
+
+  # ── Web: typecheck + production build ────────────────────────────────────────
+  web:
+    name: Web (typecheck + build)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `npm run build` runs `tsc --noEmit && vite build`, so this covers both
+      # typechecking and the production build.
+      - name: Build
+        run: npm run build

@@ -1,3 +1,5 @@
+import { computeSlaStatus, type SlaStatus } from './sla';
+
 export interface TicketRow {
   id: number;
   subject: string;
@@ -29,6 +31,7 @@ export interface TicketDto {
   assigneeId: number | null;
   assigneeName: string | null;
   slaHours: number;
+  slaStatus: SlaStatus;
   commentCount: number;
   createdAt: string;
   updatedAt: string;
@@ -47,7 +50,10 @@ export interface CommentDto {
 export function toTicketDto(
   row: TicketRow,
   assigneeName: string | null,
-  commentCount: number
+  commentCount: number,
+  // Injected so SLA evaluation is deterministic and unit-testable. Defaults to
+  // the current time, which is what the request handlers want.
+  now: Date = new Date()
 ): TicketDto {
   return {
     id: row.id,
@@ -58,6 +64,18 @@ export function toTicketDto(
     assigneeId: row.assignee_id,
     assigneeName,
     slaHours: row.sla_hours,
+    slaStatus: computeSlaStatus(
+      {
+        createdAt: row.created_at,
+        slaHours: row.sla_hours,
+        resolvedAt: row.resolved_at,
+        status: row.status,
+        // For a closed ticket with no resolved_at, updated_at is when it was
+        // closed — the point at which the SLA clock stops.
+        closedAt: row.updated_at,
+      },
+      now
+    ),
     commentCount,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
