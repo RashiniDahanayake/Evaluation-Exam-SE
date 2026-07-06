@@ -89,21 +89,21 @@ export function TicketList() {
   }, []);
 
   useEffect(() => {
+    // Guard against out-of-order responses when filters change quickly: only
+    // the latest effect run is allowed to commit its result.
+    let ignore = false;
     setTickets(null);
     request<Ticket[]>(buildTicketsUrl(status, assigneeId))
-      .then(setTickets)
-      .catch((err: Error) => setError(err.message));
-  }, [status, assigneeId]);
-
-  const stats = useMemo(() => {
-    const list = tickets ?? [];
-    return {
-      total: list.length,
-      ok: list.filter((t) => t.slaStatus === 'ok').length,
-      at_risk: list.filter((t) => t.slaStatus === 'at_risk').length,
-      breached: list.filter((t) => t.slaStatus === 'breached').length,
+      .then((result) => {
+        if (!ignore) setTickets(result);
+      })
+      .catch((err: Error) => {
+        if (!ignore) setError(err.message);
+      });
+    return () => {
+      ignore = true;
     };
-  }, [tickets]);
+  }, [status, assigneeId]);
 
   const visible = useMemo(() => {
     if (!tickets) return [];
@@ -119,6 +119,18 @@ export function TicketList() {
     if (sortDir === 'desc') sorted.reverse();
     return sorted;
   }, [tickets, query, sortKey, sortDir]);
+
+  // Stats summarise what's actually on screen, so they track the search box
+  // as well as the server-side status/assignee filters.
+  const stats = useMemo(
+    () => ({
+      total: visible.length,
+      ok: visible.filter((t) => t.slaStatus === 'ok').length,
+      at_risk: visible.filter((t) => t.slaStatus === 'at_risk').length,
+      breached: visible.filter((t) => t.slaStatus === 'breached').length,
+    }),
+    [visible]
+  );
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {

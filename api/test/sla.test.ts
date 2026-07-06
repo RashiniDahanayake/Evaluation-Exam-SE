@@ -83,4 +83,25 @@ describe('computeSlaStatus', () => {
       expect(status).toBe('ok');
     });
   });
+
+  describe('closed tickets', () => {
+    it('is ok when closed without ever being resolved, even past the deadline', () => {
+      // Closed straight from open: resolved_at is null and the deadline is long
+      // past, but a terminal ticket must not accrue a live, growing breach.
+      const status = computeSlaStatus(
+        { createdAt: hoursBefore(1000), slaHours: 8, resolvedAt: null, status: 'closed' },
+        now
+      );
+      expect(status).toBe('ok');
+    });
+
+    it('still reports breached when closed after being resolved late', () => {
+      // Resolved past the deadline, then closed: resolved_at drives the verdict.
+      const status = computeSlaStatus(
+        { createdAt: hoursBefore(20), slaHours: 8, resolvedAt: hoursBefore(2), status: 'closed' },
+        now
+      );
+      expect(status).toBe('breached');
+    });
+  });
 });

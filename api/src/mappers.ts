@@ -69,6 +69,7 @@ export function toTicketDto(
         createdAt: row.created_at,
         slaHours: row.sla_hours,
         resolvedAt: row.resolved_at,
+        status: row.status,
       },
       now
     ),
