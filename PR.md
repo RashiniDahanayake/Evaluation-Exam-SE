@@ -26,5 +26,5 @@ Suggested reading order:
 Run: `cd api && npm test` (needs the compose Postgres up). Full suite green: **22/22**.
 
 ## Notes / follow-ups
-- Flagged in `DECISIONS.md`: `updateStatus` doesn't clear `resolved_at` when a ticket is reopened, which would mislead the SLA badge. Left as a flag pending a call on intended reopen semantics.
+- Fixed while in here: `updateStatus` didn't clear `resolved_at` when a ticket was reopened, which would have misled the SLA badge (a reopened ticket would read as "resolved on time" forever). Reopen now clears it, with a test covering the resolve→reopen round trip. See `DECISIONS.md`.
 - Deliberately out of scope: pagination and DB indexes on the filter columns — noted for a follow-up.
