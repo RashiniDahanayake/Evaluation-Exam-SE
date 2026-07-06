@@ -70,6 +70,9 @@ export function toTicketDto(
         slaHours: row.sla_hours,
         resolvedAt: row.resolved_at,
         status: row.status,
+        // For a closed ticket with no resolved_at, updated_at is when it was
+        // closed — the point at which the SLA clock stops.
+        closedAt: row.updated_at,
       },
       now
     ),

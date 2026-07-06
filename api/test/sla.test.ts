@@ -84,21 +84,63 @@ describe('computeSlaStatus', () => {
     });
   });
 
-  describe('closed tickets', () => {
-    it('is ok when closed without ever being resolved, even past the deadline', () => {
-      // Closed straight from open: resolved_at is null and the deadline is long
-      // past, but a terminal ticket must not accrue a live, growing breach.
+  describe('closed tickets (never resolved)', () => {
+    it('is ok when it was closed inside the SLA window', () => {
+      // Created 10h ago on an 8h SLA (deadline 2h ago), but closed 6h ago —
+      // i.e. well before the deadline. Terminal and on time.
       const status = computeSlaStatus(
-        { createdAt: hoursBefore(1000), slaHours: 8, resolvedAt: null, status: 'closed' },
+        {
+          createdAt: hoursBefore(10),
+          slaHours: 8,
+          resolvedAt: null,
+          status: 'closed',
+          closedAt: hoursBefore(6),
+        },
         now
       );
       expect(status).toBe('ok');
     });
 
+    it('is breached when it was still past the deadline when closed', () => {
+      // Created 10h ago on an 8h SLA (deadline 2h ago), closed 1h ago — after
+      // the deadline. It genuinely breached; the verdict must not be erased.
+      const status = computeSlaStatus(
+        {
+          createdAt: hoursBefore(10),
+          slaHours: 8,
+          resolvedAt: null,
+          status: 'closed',
+          closedAt: hoursBefore(1),
+        },
+        now
+      );
+      expect(status).toBe('breached');
+    });
+
+    it('does not grow against the live clock once closed', () => {
+      // Closed comfortably inside the window; it stays ok no matter how far the
+      // current time advances past the deadline (the earlier phantom-breach bug).
+      const input = {
+        createdAt: hoursBefore(1000),
+        slaHours: 8,
+        resolvedAt: null,
+        status: 'closed',
+        closedAt: hoursBefore(996), // 4h after creation, within the 8h window
+      };
+      expect(computeSlaStatus(input, now)).toBe('ok');
+      expect(computeSlaStatus(input, new Date(now.getTime() + 1e12))).toBe('ok');
+    });
+
     it('still reports breached when closed after being resolved late', () => {
       // Resolved past the deadline, then closed: resolved_at drives the verdict.
       const status = computeSlaStatus(
-        { createdAt: hoursBefore(20), slaHours: 8, resolvedAt: hoursBefore(2), status: 'closed' },
+        {
+          createdAt: hoursBefore(20),
+          slaHours: 8,
+          resolvedAt: hoursBefore(2),
+          status: 'closed',
+          closedAt: hoursBefore(1),
+        },
         now
       );
       expect(status).toBe('breached');

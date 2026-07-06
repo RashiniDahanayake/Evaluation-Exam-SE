@@ -60,6 +60,19 @@ function slaView(ticket: TicketWithComments, now: number): SlaView {
     };
   }
 
+  // A ticket closed without a resolution is terminal: freeze the SLA at the
+  // close time (updated_at) instead of counting up against the live clock.
+  if (ticket.status === 'closed') {
+    const closed = new Date(ticket.updatedAt).getTime();
+    const late = closed > deadline;
+    return {
+      progress: 1,
+      caption: late
+        ? `Closed ${formatDuration(closed - deadline)} past deadline`
+        : `Closed with ${formatDuration(deadline - closed)} to spare`,
+    };
+  }
+
   const remaining = deadline - now;
   const progress = Math.min(1, Math.max(0, (now - created) / (deadline - created)));
   return {
